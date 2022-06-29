@@ -1,0 +1,11 @@
+version: '2'
+
+services:
+  app-botion:
+    build: .
+    env_file:
+      - '.env'
+    ports:
+      - '8000:5000'
+    volumes:
+      - .:/Photos-Docker-Flask
