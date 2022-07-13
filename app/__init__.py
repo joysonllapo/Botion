@@ -88,26 +88,108 @@ def create_app(config_name):
             )
             return response 
 
-    @app.route('/v1/notion/databases/<path:database>/query', methods=["POST"])
-    def Notion_Database(database):
+    @app.route('/v1/notion/gallery', methods=["POST"])
+    def Notion_Database():
 
-        # res = requests.Session()
-        # retry = Retry(connect=3, backoff_factor=0.5)
-        # adapter = HTTPAdapter(max_retries=retry)
-        # res.mount('http://', adapter)
-        # res.mount('https://', adapter)
-        #res.get(f"https://api.notion.com/v1/databases/{database}/query")
         data = request.json
+        database = data["database-id"]
+
+        payload = {
+            "page_size": 100,
+            "filter": {
+                "and": [
+                    {
+                        "property": "card-status",
+                        "checkbox": {
+                            "equals": True
+                        }
+                    },
+                    {
+                        "property": "card-title",
+                        "rich_text": {
+                            "is_not_empty": True
+                        }
+                    },
+                    {
+                        "property": "card-subtitle",
+                        "rich_text": {
+                            "is_not_empty": True
+                        }
+                    }
+                ]
+            },
+            "sorts": [
+                {
+                    "property": "Name",
+                    "direction": "ascending"
+                }
+            ]
+        }
+
+        if "payload" in data:
+            if "page_size" in data["payload"]:
+                payload["page_size"] = data["payload"]["page_size"]
+            
+            if "filter" in data["payload"]:
+                if "and" in data["payload"]["filter"]:
+                    payload["and"] = payload["and"].extend(data["payload"]["filter"]["and"])
+
+            if "sorts" in data["payload"]:
+                payload["sorts"] = payload["sorts"].extend(data["payload"]["sorts"])
+
+        print(payload)
+
         readURL = f"https://api.notion.com/v1/databases/{database}/query"
         
-        res = requests.request("POST",readURL, json=data["payload"], headers=headers)
+        res = requests.request("POST",readURL, json=payload, headers=headers)
         
         if(res.status_code == 200):
+            results = res.json()["results"]
+            data_results = []
+            for result in results:
+                properties = result["properties"]
+                
+                buttons = []
+                for i in range(1, 4):
+                    type = None
+                    type_result = properties["typeButton"+str(i)]["select"]
+                    type_caption = properties["button"+str(i)+"Caption"]["rich_text"]
+                    type_target = properties["button"+str(i)+"Target"]["rich_text"]
+
+                    if type_result != None:
+                        type = type_result["name"]
+
+                    caption = None
+                    if len(type_caption) > 0:
+                        caption = type_caption[0]["plain_text"]
+                    
+                    target = None
+                    if len(type_target) > 0:
+                        target = type_target[0]["plain_text"]
+                    button = {
+                        "url": None,
+                        "type": type,
+                        "target": target,
+                        "actions": [],
+                        "caption": caption,
+                        "webview_size": None
+                    }
+                    if caption != None:
+                        buttons.append(button)
+                value = {
+                    "title": properties["card-title"]["formula"]["string"],
+                    "buttons": buttons,
+                    "subtitle": properties["card-subtitle"]["formula"]["string"],
+                    "image_url": properties["card-image"]["formula"]["string"],
+                    "action_url": properties["card-url"]["formula"]["string"],
+                }
+                data_results.append(value)
+
             response = app.response_class(
                 response = json.dumps({
                     'status': res.status_code,
                     'message': 'successful data retrieval',
-                    'response': res.json()
+                    'response': data_results
                 }),
                 status=res.status_code,
                 mimetype='application/json'
@@ -246,7 +328,7 @@ def create_app(config_name):
             as_attachment=True
         )
 
-    @app.route('/v1/notion/json', methods=['POST'])
+    @app.route('/v1/notion/granola/generate-rpe', methods=['POST'])
     def Convert_Json():
         try:
             data = request.json
