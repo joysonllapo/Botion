@@ -151,10 +151,17 @@ def create_app(config_name):
                 
                 buttons = []
                 for i in range(1, 4):
+                    actions = []
+                    url = None
                     type = None
+                    button1action = None
                     type_result = properties["typeButton"+str(i)]["select"]
                     type_caption = properties["button"+str(i)+"Caption"]["rich_text"]
                     type_target = properties["button"+str(i)+"Target"]["rich_text"]
+
+                    button1action_result = properties["button"+str(i)+"Action"]["select"]
+                    #type_result = properties["typeButton"+str(i)]["select"]
+                    #type_result = properties["typeButton"+str(i)]["select"]
 
                     if type_result != None:
                         type = type_result["name"]
@@ -166,11 +173,36 @@ def create_app(config_name):
                     target = None
                     if len(type_target) > 0:
                         target = type_target[0]["plain_text"]
+
+                    if type == "url" and target != None:
+                        url = target
+                        target = None
+                    
+                    if button1action_result != None:
+                        button1action = button1action_result["name"]
+                        
+                        if button1action in ["set_field_value", "unset_field_value"]:
+                            buttonactioname_result = properties["button"+str(i)+"ActionName"]["rich_text"]
+                            for i in buttonactioname_result[0]["plain_text"].split(","):
+                                action_result = {
+                                    "value": None,
+                                    "action": button1action,
+                                    "field_name": i
+                                }
+                                actions.append(action_result)
+                        elif button1action in ["add_taq", "remove_taq"]:
+                            buttonactioname_result = properties["button"+str(i)+"ActionName"]["rich_text"]
+                            for i in buttonactioname_result[0]["plain_text"].split(","):
+                                action_result = {
+                                    "action": button1action,
+                                    "tag_name": i
+                                }
+                                actions.append(action_result)
                     button = {
-                        "url": None,
+                        "url": url,
                         "type": type,
                         "target": target,
-                        "actions": [],
+                        "actions": actions,
                         "caption": caption,
                         "webview_size": None
                     }
